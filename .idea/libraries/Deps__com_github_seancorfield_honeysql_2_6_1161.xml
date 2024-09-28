@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="Deps: com.github.seancorfield/honeysql:2.6.1161">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/github/seancorfield/honeysql/2.6.1161/honeysql-2.6.1161.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

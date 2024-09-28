@@ -1,0 +1,11 @@
+{:aws {
+       :access-key   #env AWS_ACCESS_KEY_ID
+       :secret-key   #env AWS_SECRET_KEY
+       :endpoint-url #env AWS_ENDPOINT_URL
+       }
+ :db  {
+       :jdbc-url #or [#env JDBC_URL "jdbc:postgresql://localhost:5432/rwca"]
+       :username #or [#env DB_USERNAME "rwca"]
+       :password #or [#env DB_PASSWORD "rwca"]
+       }
+}

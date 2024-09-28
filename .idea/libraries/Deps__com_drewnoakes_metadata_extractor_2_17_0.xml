@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="Deps: com.drewnoakes/metadata-extractor:2.17.0">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/drewnoakes/metadata-extractor/2.17.0/metadata-extractor-2.17.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
