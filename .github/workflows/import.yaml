@@ -1,1 +1,19 @@
 name: Import Images
+on: workflow_dispatch
+
+jobs:
+  clojure:
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '23'
+
+      - name: Install Clojure
+        uses: DeLaGuardo/setup-clojure@12.5
+        with:
+          cli: 1.11.3
