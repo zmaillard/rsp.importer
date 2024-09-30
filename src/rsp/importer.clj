@@ -53,11 +53,16 @@
    (str "temp/" key "/" key ".jpg"))
   )
 
+(defn delete-image
+  [key]
+  (-> (s3-client)
+      (aws/invoke {:op :DeleteObject :request {:Bucket "sign" :Key key}})))
+
 (defn copy-image
   [old-key new-key]
   (let [old-key-bucket-prefix (str "/sign/" old-key)]
     (-> (s3-client)
-        (aws/invoke {:op :CopyObject :request {:Bucket "sign"  :Key new-key :CopySource old-key-bucket-prefix }})
+        (aws/invoke {:op :CopyObject :request {:Bucket "sign" :Key new-key :CopySource old-key-bucket-prefix}})
         )))
 
 (defn scale-image
@@ -95,15 +100,15 @@
     {:width width :height height}))
 
 (defn save-image
-  [{date "Date/Time Original" }{width :width height :height} conn key]
+  [{date "Date/Time Original"} {width :width height :height} conn key]
   (println date)
-  (let [ dt (LocalDateTime/parse date (DateTimeFormatter/ofPattern "u:M:d k:m:s" ))
+  (let [dt (LocalDateTime/parse date (DateTimeFormatter/ofPattern "u:M:d k:m:s"))
         insert {:insert-into [:'sign.highwaysign_staging]
-                :columns [:image_width :image_height :imageid :date_taken]
-                :values [[width height key dt]]}
-               parsed-insert (sql/format insert)]
+                :columns     [:image_width :image_height :imageid :date_taken]
+                :values      [[width height key dt]]}
+        parsed-insert (sql/format insert)]
 
-        (jdbc/execute-one! conn parsed-insert)))
+    (jdbc/execute-one! conn parsed-insert)))
 
 (defn process
   [conn {key :Key}]
@@ -112,13 +117,13 @@
         metadata (exif-for-filename image-name)
         raw-image (load-image image-name)
         ]
-    (scale-image (new-name image-id :placeholder) raw-image :placeholder)
-    (scale-image (new-name image-id :thumbnail) raw-image :thumbnail)
-    (scale-image (new-name image-id :small) raw-image :small)
-    (scale-image (new-name image-id :medium) raw-image :medium)
-    (scale-image (new-name image-id :large) raw-image :large)
+    (doseq [size (keys image-size)]
+      (scale-image (new-name image-id size) raw-image size)
+      )
     (copy-image key (new-name image-id))
-    (save-image metadata (get-dimensions raw-image) conn image-id)))
+    (save-image metadata (get-dimensions raw-image) conn image-id)
+    ;(delete-image key)
+    ))
 
 (defn run
   []
@@ -132,4 +137,5 @@
       )))
 
 
-; {Compression Type Baseline, Component 2 Cb component: Quantization table 1, Sampling factors 1 horiz/1 vert, Resolution Units none, Data Precision 8 bits, Component 1 Y component: Quantization table 0, Sampling factors 2 horiz/2 vert, Image Width 5152 pixels, Y Resolution 1 dot, Component 3 Cr component: Quantization table 1, Sampling factors 1 horiz/1 vert, Image Height 3864 pixels, X Resolution 1 dot, Thumbnail Width Pixels 0, Version 1.2, Number of Components 3, Thumbnail Height Pixels 0}
+
+;{:Error {:Code NoSuchBucket, :CodeAttrs {}, :Message The specified bucket does not exist., :MessageAttrs {}}, :ErrorAttrs {}, :cognitect.aws.http/status 404, :cognitect.anomalies/category :cognitect.anomalies/not-found, :cognitect.aws.error/code NoSuchBucket}

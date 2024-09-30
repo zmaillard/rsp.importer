@@ -17,3 +17,6 @@ jobs:
         uses: DeLaGuardo/setup-clojure@12.5
         with:
           cli: 1.11.3
+
+      - name: Do Import
+        run: clj -X rsp.importer/run
