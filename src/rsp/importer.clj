@@ -5,11 +5,14 @@
             [cognitect.aws.credentials :as credentials]
             [mikera.image.core :as image]
             [next.jdbc :as jdbc]
+            [next.jdbc.date-time]
             [rsp.config :as cfg]
             [exif-processor.core :refer [exif-for-filename]]
             [honey.sql :as sql])
   (:import [de.mkammerer.snowflakeid SnowflakeIdGenerator]
-           (java.io  ByteArrayOutputStream File)
+           (java.io ByteArrayOutputStream File)
+           (java.time LocalDateTime)
+           (java.time.format DateTimeFormatter)
            [javax.imageio ImageIO]))
 
 (defonce snowflake-generator (SnowflakeIdGenerator/createDefault 0))
@@ -50,6 +53,12 @@
    (str "temp/" key "/" key ".jpg"))
   )
 
+(defn copy-image
+  [old-key new-key]
+  (let [old-key-bucket-prefix (str "/sign/" old-key)]
+    (-> (s3-client)
+        (aws/invoke {:op :CopyObject :request {:Bucket "sign"  :Key new-key :CopySource old-key-bucket-prefix }})
+        )))
 
 (defn scale-image
   [title image size]
@@ -73,16 +82,6 @@
         )
     image-name))
 
-;(defn load-image
-;  [key]
-;  (-> (s3-client)
-;      (aws/invoke {:op :GetObject :request {:Bucket "sign" :Key key}})
-;      (:Body)
-;      (BufferedInputStream.)
-;      (ImageIO/read)
-;      ))
-;
-
 
 (defn load-image
   [^String file-name]
@@ -97,12 +96,14 @@
 
 (defn save-image
   [{date "Date/Time Original" }{width :width height :height} conn key]
-    (-> {:insert-into [:highwaysign_staging]
-         :columns     [:image_width :image_height :date_taken :imageid]
-         :values      [[width height (java.util.Date.) key]]}
-        (sql/format)
-        (jdbc/execute! conn)
-        ))
+  (println date)
+  (let [ dt (LocalDateTime/parse date (DateTimeFormatter/ofPattern "u:M:d k:m:s" ))
+        insert {:insert-into [:'sign.highwaysign_staging]
+                :columns [:image_width :image_height :imageid :date_taken]
+                :values [[width height key dt]]}
+               parsed-insert (sql/format insert)]
+
+        (jdbc/execute-one! conn parsed-insert)))
 
 (defn process
   [conn {key :Key}]
@@ -111,13 +112,12 @@
         metadata (exif-for-filename image-name)
         raw-image (load-image image-name)
         ]
-    (println (string/join ";" (keys metadata) ))
-    (println (get metadata "Date/Time Original"))
     (scale-image (new-name image-id :placeholder) raw-image :placeholder)
     (scale-image (new-name image-id :thumbnail) raw-image :thumbnail)
     (scale-image (new-name image-id :small) raw-image :small)
     (scale-image (new-name image-id :medium) raw-image :medium)
     (scale-image (new-name image-id :large) raw-image :large)
+    (copy-image key (new-name image-id))
     (save-image metadata (get-dimensions raw-image) conn image-id)))
 
 (defn run

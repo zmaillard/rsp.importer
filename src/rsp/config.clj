@@ -5,15 +5,15 @@
 (defn get-db-spec
   [config]
   {:jdbcUrl  (get-in config [:db :jdbc-url])
-             :username (get-in config [:db :username])
+             :user (get-in config [:db :username])
              :password (get-in config [:db :password])})
 
 (defn get-aws-access
   [config]
   {:access-key-id     (get-in config [:aws :access-key])
    :secret-access-key (get-in config [:aws :secret-key])
-   }
-  )
+   })
+
 
 (defn get-aws-endpoint-url
   [config]
