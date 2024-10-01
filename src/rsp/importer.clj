@@ -2,16 +2,17 @@
   (:require [clojure.java.io :as io]
             [cognitect.aws.client.api :as aws]
             [cognitect.aws.credentials :as credentials]
-            [mikera.image.core :as image]
             [next.jdbc :as jdbc]
             [next.jdbc.date-time]
             [rsp.config :as cfg]
             [exif-processor.core :refer [exif-for-filename]]
             [honey.sql :as sql])
   (:import [de.mkammerer.snowflakeid SnowflakeIdGenerator]
+           (java.awt.image BufferedImage)
            (java.io ByteArrayOutputStream File)
            (java.time LocalDateTime)
            (java.time.format DateTimeFormatter)
+           (org.imgscalr Scalr Scalr$Method Scalr$Mode)
            [javax.imageio ImageIO]))
 
 (defonce snowflake-generator (SnowflakeIdGenerator/createDefault 0))
@@ -67,9 +68,10 @@
 (defn scale-image
   [title image size]
   (let [new-width (get-image-width size)
-        new-image (image/resize image new-width)
+        new-image (Scalr/resize image Scalr$Method/ULTRA_QUALITY Scalr$Mode/FIT_TO_WIDTH new-width 0 nil)
         image-output-stream (ByteArrayOutputStream.)
         ]
+    (println new-image)
     (ImageIO/write new-image "jpg" image-output-stream)
     (-> (s3-client)
         (aws/invoke {:op :PutObject :request {:Bucket "sign" :ContentType "image/jpeg" :Key title :Body (.toByteArray image-output-stream)}})
@@ -93,14 +95,13 @@
     (ImageIO/read file)))
 
 (defn get-dimensions
-  [image]
-  (let [width (image/width image)
-        height (image/height image)]
+  [^BufferedImage image]
+  (let [width (.getWidth image)
+        height (.getHeight image)]
     {:width width :height height}))
 
 (defn save-image
   [{date "Date/Time Original"} {width :width height :height} conn key]
-  (println date)
   (let [dt (LocalDateTime/parse date (DateTimeFormatter/ofPattern "u:M:d k:m:s"))
         insert {:insert-into [:'sign.highwaysign_staging]
                 :columns     [:image_width :image_height :imageid :date_taken]
@@ -133,6 +134,7 @@
         ds (jdbc/get-datasource (cfg/get-db-spec config))]
     (with-open [conn (jdbc/get-connection ds)]
       (doseq [sign signs]
+        (println sign)
         (process conn sign ))
       )))
 

@@ -3,7 +3,7 @@
          com.cognitect.aws/api                  {:mvn/version "0.8.692"}
          com.cognitect.aws/endpoints            {:mvn/version "1.1.12.772"}
          com.cognitect.aws/s3                   {:mvn/version "869.2.1687.0"}
-         net.mikera/imagez                      {:mvn/version "0.12.0"}
+         org.imgscalr/imgscalr-lib              {:mvn/version "4.2"}
          com.github.seancorfield/next.jdbc      {:mvn/version "1.3.939"}
          de.mkammerer.snowflake-id/snowflake-id {:mvn/version "0.0.2"}
          com.github.seancorfield/honeysql       {:mvn/version "2.6.1161"}
