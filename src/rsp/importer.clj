@@ -126,7 +126,7 @@
     ))
 
 (defn run
-  []
+  [_]
   (let [{signs :Contents} (aws/invoke (s3-client) {:op      :ListObjectsV2
                                                    :request {:Bucket "sign" :Prefix "staging/"}})
         config (cfg/load-config)
