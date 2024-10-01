@@ -21,3 +21,10 @@ jobs:
 
       - name: Do Import
         run: clojure -X rsp.importer/run
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          AWS_ENDPOINT_URL: ${{ vars.AWS_ENDPOINT_URL }}
+          JDBC_URL: ${{ secrets.JDBC_URL }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
