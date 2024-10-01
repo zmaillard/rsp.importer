@@ -1,6 +1,5 @@
 (ns rsp.importer
   (:require [clojure.java.io :as io]
-            [clojure.string :as string]
             [cognitect.aws.client.api :as aws]
             [cognitect.aws.credentials :as credentials]
             [mikera.image.core :as image]
@@ -48,9 +47,9 @@
 
 (defn new-name
   ([key size]
-   (str "temp/" key "/" key "_" (get-image-name size) ".jpg"))
+   (str  key "/" key "_" (get-image-name size) ".jpg"))
   ([key]
-   (str "temp/" key "/" key ".jpg"))
+   (str key "/" key ".jpg"))
   )
 
 (defn delete-image
@@ -122,7 +121,8 @@
       )
     (copy-image key (new-name image-id))
     (save-image metadata (get-dimensions raw-image) conn image-id)
-    ;(delete-image key)
+    (delete-image key)
+    (println (str "Imported " key " to " image-id))
     ))
 
 (defn run
@@ -133,7 +133,8 @@
         ds (jdbc/get-datasource (cfg/get-db-spec config))]
     (with-open [conn (jdbc/get-connection ds)]
       (process conn (first signs))
-      ;(map process signs)
+      (doseq [sign signs]
+        (process conn sign ))
       )))
 
 
