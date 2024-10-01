@@ -132,7 +132,6 @@
         config (cfg/load-config)
         ds (jdbc/get-datasource (cfg/get-db-spec config))]
     (with-open [conn (jdbc/get-connection ds)]
-      (process conn (first signs))
       (doseq [sign signs]
         (process conn sign ))
       )))
