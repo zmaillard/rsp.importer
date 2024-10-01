@@ -20,4 +20,4 @@ jobs:
           cli: 1.11.3.1463
 
       - name: Do Import
-        run: clj -X rsp.importer/run
+        run: clojure -X rsp.importer/run
