@@ -71,7 +71,6 @@
         new-image (Scalr/resize image Scalr$Method/ULTRA_QUALITY Scalr$Mode/FIT_TO_WIDTH new-width 0 nil)
         image-output-stream (ByteArrayOutputStream.)
         ]
-    (println new-image)
     (ImageIO/write new-image "jpg" image-output-stream)
     (-> (s3-client)
         (aws/invoke {:op :PutObject :request {:Bucket "sign" :ContentType "image/jpeg" :Key title :Body (.toByteArray image-output-stream)}})
@@ -134,10 +133,7 @@
         ds (jdbc/get-datasource (cfg/get-db-spec config))]
     (with-open [conn (jdbc/get-connection ds)]
       (doseq [sign signs]
-        (println sign)
         (process conn sign ))
       )))
 
 
-
-;{:Error {:Code NoSuchBucket, :CodeAttrs {}, :Message The specified bucket does not exist., :MessageAttrs {}}, :ErrorAttrs {}, :cognitect.aws.http/status 404, :cognitect.anomalies/category :cognitect.anomalies/not-found, :cognitect.aws.error/code NoSuchBucket}
