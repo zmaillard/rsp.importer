@@ -5,15 +5,18 @@
             [next.jdbc :as jdbc]
             [next.jdbc.date-time]
             [rsp.config :as cfg]
+            [rsp.image :as image]
+            [babashka.fs :as fs]
             [exif-processor.core :refer [exif-for-filename]]
             [honey.sql :as sql])
   (:import [de.mkammerer.snowflakeid SnowflakeIdGenerator]
-           (java.awt.image BufferedImage)
+           (java.awt.image BufferedImage BufferedImageOp)
+           (javax.imageio IIOImage ImageIO)
            (java.io ByteArrayOutputStream File)
            (java.time LocalDateTime)
            (java.time.format DateTimeFormatter)
-           (org.imgscalr Scalr Scalr$Method Scalr$Mode)
-           [javax.imageio ImageIO]))
+           (javax.imageio.stream FileImageOutputStream)
+           (org.imgscalr Scalr Scalr$Method Scalr$Mode)))
 
 (defonce snowflake-generator (SnowflakeIdGenerator/createDefault 0))
 
@@ -25,8 +28,8 @@
                  :credentials-provider (credentials/basic-credentials-provider (cfg/get-aws-access config))
                  :endpoint-override    {
                                         :hostname (cfg/get-aws-endpoint-url config)
-                                        :region   "auto"
-                                        }})))
+                                        :region   "auto"}})))
+
 
 (def image-size {:placeholder
                  {:size 10 :suffix "p"}
@@ -48,10 +51,9 @@
 
 (defn new-name
   ([key size]
-   (str  key "/" key "_" (get-image-name size) ".jpg"))
+   (str key "/" key "_" (get-image-name size) ".jpg"))
   ([key]
-   (str key "/" key ".jpg"))
-  )
+   (str key "/" key ".jpg")))
 
 (defn delete-image
   [key]
@@ -62,19 +64,19 @@
   [old-key new-key]
   (let [old-key-bucket-prefix (str "/sign/" old-key)]
     (-> (s3-client)
-        (aws/invoke {:op :CopyObject :request {:Bucket "sign" :Key new-key :CopySource old-key-bucket-prefix}})
-        )))
+        (aws/invoke {:op :CopyObject :request {:Bucket "sign" :Key new-key :CopySource old-key-bucket-prefix}}))))
+
 
 (defn scale-image
   [title image size]
   (let [new-width (get-image-width size)
         new-image (Scalr/resize image Scalr$Method/ULTRA_QUALITY Scalr$Mode/FIT_TO_WIDTH new-width 0 nil)
-        image-output-stream (ByteArrayOutputStream.)
-        ]
+        image-output-stream (ByteArrayOutputStream.)]
+
     (ImageIO/write new-image "jpg" image-output-stream)
     (-> (s3-client)
-        (aws/invoke {:op :PutObject :request {:Bucket "sign" :ContentType "image/jpeg" :Key title :Body (.toByteArray image-output-stream)}})
-        )))
+        (aws/invoke {:op :PutObject :request {:Bucket "sign" :ContentType "image/jpeg" :Key title :Body (.toByteArray image-output-stream)}}))))
+
 
 (defn download-image
   [key image-id]
@@ -83,8 +85,8 @@
     (-> (s3-client)
         (aws/invoke {:op :GetObject :request {:Bucket "sign" :Key key}})
         (:Body)
-        (io/copy (io/output-stream file))
-        )
+        (io/copy (io/output-stream file)))
+
     image-name))
 
 
@@ -114,16 +116,16 @@
   (let [image-id (.next snowflake-generator)
         image-name (download-image key image-id)
         metadata (exif-for-filename image-name)
-        raw-image (load-image image-name)
-        ]
+        raw-image (load-image image-name)]
+
     (doseq [size (keys image-size)]
-      (scale-image (new-name image-id size) raw-image size)
-      )
+      (scale-image (new-name image-id size) raw-image size))
+
     (copy-image key (new-name image-id))
     (save-image metadata (get-dimensions raw-image) conn image-id)
     (delete-image key)
-    (println (str "Imported " key " to " image-id))
-    ))
+    (println (str "Imported " key " to " image-id))))
+
 
 (defn run
   [_]
@@ -133,7 +135,24 @@
         ds (jdbc/get-datasource (cfg/get-db-spec config))]
     (with-open [conn (jdbc/get-connection ds)]
       (doseq [sign signs]
-        (process conn sign ))
-      )))
+        (process conn sign)))))
 
+
+(defn process-local
+  [^String sign size]
+  (let [image (ImageIO/read (File. sign))
+        new-width (get-image-width size)
+        image-id (fs/strip-ext (fs/file-name sign))
+        resized (Scalr/resize image Scalr$Method/ULTRA_QUALITY Scalr$Mode/FIT_TO_WIDTH new-width 0 image/antialias-op)
+        writer (image/get-image-writers)]
+    (.setOutput writer (FileImageOutputStream. (File. (str "/Users/zachm/Pictures/Processing/" image-id "_" (get-image-name size) ".jpg"))))
+    (.write writer nil (IIOImage. resized nil nil) (image/get-jpeg-quality))
+    (.dispose writer)))
+
+(defn run-local
+  [dir-name]
+  (let [signs (fs/glob dir-name "*.jpg")]
+    (doseq [sign signs]
+      (doseq [size (keys image-size)]
+        (process-local (str sign) size)))))
 
