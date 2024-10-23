@@ -4,7 +4,8 @@
            (javax.imageio.plugins.jpeg JPEGImageWriteParam)
            (org.imgscalr Scalr)))
 
-(def antialias-op into-array BufferedImageOp [Scalr/OP_ANTIALIAS])
+
+(def antialias-op (into-array BufferedImageOp [Scalr/OP_ANTIALIAS]))
 
 (defn get-image-writers
   []

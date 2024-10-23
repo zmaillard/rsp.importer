@@ -10,7 +10,7 @@
             [exif-processor.core :refer [exif-for-filename]]
             [honey.sql :as sql])
   (:import [de.mkammerer.snowflakeid SnowflakeIdGenerator]
-           (java.awt.image BufferedImage BufferedImageOp)
+           (java.awt.image BufferedImage)
            (javax.imageio IIOImage ImageIO)
            (java.io ByteArrayOutputStream File)
            (java.time LocalDateTime)
@@ -70,13 +70,14 @@
 (defn scale-image
   [title image size]
   (let [new-width (get-image-width size)
-        new-image (Scalr/resize image Scalr$Method/ULTRA_QUALITY Scalr$Mode/FIT_TO_WIDTH new-width 0 nil)
+        new-image (Scalr/resize image Scalr$Method/ULTRA_QUALITY Scalr$Mode/FIT_TO_WIDTH new-width 0 image/antialias-op)
+        writer (image/get-image-writers)
         image-output-stream (ByteArrayOutputStream.)]
-
-    (ImageIO/write new-image "jpg" image-output-stream)
+    (.setOutput writer image-output-stream)
+    (.write writer nil (IIOImage. new-image nil nil) (image/get-jpeg-quality))
     (-> (s3-client)
-        (aws/invoke {:op :PutObject :request {:Bucket "sign" :ContentType "image/jpeg" :Key title :Body (.toByteArray image-output-stream)}}))))
-
+        (aws/invoke {:op :PutObject :request {:Bucket "sign" :ContentType "image/jpeg" :Key title :Body (.toByteArray image-output-stream)}}))
+    (.dispose writer)))
 
 (defn download-image
   [key image-id]
@@ -139,13 +140,17 @@
 
 
 (defn process-local
-  [^String sign size]
+  [dir-name ^String sign size]
   (let [image (ImageIO/read (File. sign))
         new-width (get-image-width size)
         image-id (fs/strip-ext (fs/file-name sign))
         resized (Scalr/resize image Scalr$Method/ULTRA_QUALITY Scalr$Mode/FIT_TO_WIDTH new-width 0 image/antialias-op)
-        writer (image/get-image-writers)]
-    (.setOutput writer (FileImageOutputStream. (File. (str "/Users/zachm/Pictures/Processing/" image-id "_" (get-image-name size) ".jpg"))))
+        writer (image/get-image-writers)
+        output-dir (fs/path dir-name image-id)
+        output-name (fs/path output-dir (str image-id "_" (get-image-name size) ".jpg"))]
+
+    (fs/create-dirs output-dir)
+    (.setOutput writer (FileImageOutputStream. (File. (str output-name))))
     (.write writer nil (IIOImage. resized nil nil) (image/get-jpeg-quality))
     (.dispose writer)))
 
@@ -154,5 +159,5 @@
   (let [signs (fs/glob dir-name "*.jpg")]
     (doseq [sign signs]
       (doseq [size (keys image-size)]
-        (process-local (str sign) size)))))
+        (process-local dir-name (str sign) size)))))
 
