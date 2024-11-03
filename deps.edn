@@ -12,4 +12,4 @@
          babashka/fs                            {:mvn/version "0.5.22"}}
 
 
- :paths ["src" "resources"]}
+ :paths ["src" "resources" "dev" "test"]}
