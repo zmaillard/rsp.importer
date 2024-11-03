@@ -15,7 +15,7 @@
            (java.io ByteArrayOutputStream File)
            (java.time LocalDateTime)
            (java.time.format DateTimeFormatter)
-           (javax.imageio.stream FileImageOutputStream)
+           (javax.imageio.stream FileImageOutputStream MemoryCacheImageOutputStream)
            (org.imgscalr Scalr Scalr$Method Scalr$Mode)))
 
 (defonce snowflake-generator (SnowflakeIdGenerator/createDefault 0))
@@ -55,8 +55,9 @@
   (let [new-width (image/get-image-width size)
         new-image (Scalr/resize image Scalr$Method/ULTRA_QUALITY Scalr$Mode/FIT_TO_WIDTH new-width 0 image/antialias-op)
         writer (image/get-image-writers)
-        image-output-stream (ByteArrayOutputStream.)]
-    (.setOutput writer image-output-stream)
+        image-output-stream (ByteArrayOutputStream.)
+        memory-output-stream (MemoryCacheImageOutputStream. image-output-stream)]
+    (.setOutput writer memory-output-stream)
     (.write writer nil (IIOImage. new-image nil nil) (image/get-jpeg-quality))
     (-> (s3-client)
         (aws/invoke {:op :PutObject :request {:Bucket "sign" :ContentType "image/jpeg" :Key title :Body (.toByteArray image-output-stream)}}))
