@@ -11,8 +11,8 @@
 (defn get-aws-access
   [config]
   {:access-key-id     (get-in config [:aws :access-key])
-   :secret-access-key (get-in config [:aws :secret-key])
-   })
+   :secret-access-key (get-in config [:aws :secret-key])})
+
 
 
 (defn get-aws-endpoint-url
