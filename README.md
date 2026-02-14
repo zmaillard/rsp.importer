@@ -31,9 +31,9 @@ Configuration is loaded from `resources/config.edn` via Aero and is driven by en
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_KEY`
 - `AWS_ENDPOINT_URL`
-- `JDBC_URL` (optional; defaults to `jdbc:postgresql://localhost:5432/rwca`)
-- `DB_USERNAME` (optional; defaults to `rwca`)
-- `DB_PASSWORD` (optional; defaults to `rwca`)
+- `JDBC_URL` 
+- `DB_USERNAME` 
+- `DB_PASSWORD` 
 
 Run locally:
 
@@ -46,10 +46,6 @@ clojure -M -m rsp.importer
 ```bash
 clojure -M -m rsp.importer --ai
 ```
-
-Notes:
-- The S3 bucket name `sign` and region `us-east-1` are currently hard-coded in `src/rsp/importer.clj` and `src/rsp/cloud.clj`.
-- Images are written back into the same bucket using keys derived from the numeric image id.
 
 This project assumes:
 - Object storage: Cloudflare R2 (S3-compatible). For `AWS_ENDPOINT_URL`, use the value described in Cloudflare's R2 documentation for your account/bucket.
