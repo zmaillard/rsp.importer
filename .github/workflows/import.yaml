@@ -19,8 +19,18 @@ jobs:
         with:
           cli: 1.11.3.1463
 
-      - name: Do Import
-        run: clojure -X rsp.importer/-main
+      - name: Import New Images
+        run: clojure -M -m rsp.importer
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+          AWS_ENDPOINT_URL: ${{ vars.AWS_ENDPOINT_URL }}
+          JDBC_URL: ${{ secrets.JDBC_URL }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+
+      - name: Import Edited Images
+        run: clojure -M -m rsp.importer --ai
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}

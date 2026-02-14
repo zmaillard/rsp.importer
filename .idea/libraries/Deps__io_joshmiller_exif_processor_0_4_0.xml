@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="Deps: io.joshmiller/exif-processor:0.4.0">
-    <CLASSES>
-      <root url="jar://$MAVEN_REPOSITORY$/io/joshmiller/exif-processor/0.4.0/exif-processor-0.4.0.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>

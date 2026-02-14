@@ -1,8 +1,11 @@
 (ns rsp.image
-  (:import (java.awt.image BufferedImageOp)
-           (javax.imageio ImageIO ImageWriteParam)
-           (javax.imageio.plugins.jpeg JPEGImageWriteParam)
-           (org.imgscalr Scalr)))
+  (:import
+   (java.awt.image BufferedImageOp)
+   [java.io File]
+   (javax.imageio ImageIO ImageWriteParam)
+   (javax.imageio.plugins.jpeg JPEGImageWriteParam)
+   (org.imgscalr Scalr)))
+
 
 (def image-size {:placeholder
                  {:size 10 :suffix "p"}
@@ -13,6 +16,11 @@
                  :medium
                  {:size 500 :suffix "m"}
                  :large {:size 1024 :suffix "l"}})
+
+(defn load-image
+  [^String file-name]
+  (let [file (File. file-name)]
+    (ImageIO/read file)))
 
 (defn get-image-width
   [image]
@@ -34,4 +42,5 @@
     (.setCompressionMode jpeg-params ImageWriteParam/MODE_EXPLICIT)
     (.setCompressionQuality jpeg-params 1.0)
     jpeg-params))
+
 
