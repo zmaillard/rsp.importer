@@ -34,7 +34,7 @@
     (println mode)
     (with-open [conn (jdbc/get-connection ds)]
       (doseq [sign signs]
-        (println sign)
+        (println "Processing:" (:Key sign))
         (process-fn conn sign)))))
 
 
