@@ -11,7 +11,7 @@
   ([key size]
    (str key "/" post-processed-key "/" key "_" (image/get-image-name size) ".jpg"))
   ([key]
-   (str key "/" post-processed-key "/"  key ".jpg")))
+   (str key "/" post-processed-key "/" key ".jpg")))
 
 (defn update-image
   [conn key]
