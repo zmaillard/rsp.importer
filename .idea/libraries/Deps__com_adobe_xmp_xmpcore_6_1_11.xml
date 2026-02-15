@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="Deps: com.adobe.xmp/xmpcore:6.1.11">
-    <CLASSES>
-      <root url="jar://$MAVEN_REPOSITORY$/com/adobe/xmp/xmpcore/6.1.11/xmpcore-6.1.11.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>
