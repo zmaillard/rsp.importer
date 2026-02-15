@@ -16,9 +16,10 @@
 (defn update-image
   [conn key]
   (let
-    [update {:update  [:'sign.highwaysign]
-             :columns [:has_processed_image]
-             :values  [true]}
+    [imageid (bigint key)
+     update {:update  [:'sign.highwaysign]
+             :set {:has_processed true}
+             :where  [:= :imageid imageid]}
      parsed-update (sql/format update)]
 
     (jdbc/execute-one! conn parsed-update)))
