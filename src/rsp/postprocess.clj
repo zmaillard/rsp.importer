@@ -5,13 +5,13 @@
    [rsp.image :as image]
    [rsp.cloud :as cloud]))
 
-(def PostProcessedKey "edited")
+(def post-processed-key "edited")
 
 (defn new-name
   ([key size]
-   (str key "/" PostProcessedKey "/" key "_" (image/get-image-name size) ".jpg"))
+   (str key "/" post-processed-key "/" key "_" (image/get-image-name size) ".jpg"))
   ([key]
-   (str key "/" PostProcessedKey "/"  key ".jpg")))
+   (str key "/" post-processed-key "/" key ".jpg")))
 
 (defn update-image
   [conn key]
