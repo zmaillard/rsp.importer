@@ -31,16 +31,16 @@
 
 (defn process
   [conn {key :Key}]
+  (if-let [image-id (extract-image-id key)]
+    (let [image-name (cloud/download-image key image-id)
+          raw-image (image/load-image image-name)]
 
-  (let [image-id (extract-image-id key)
-        image-name (cloud/download-image key image-id)
-        raw-image (image/load-image image-name)]
+      (doseq [size (keys image/image-size)]
+        (cloud/scale-image (new-name image-id size) raw-image size))
 
-    (doseq [size (keys image/image-size)]
-      (cloud/scale-image (new-name image-id size) raw-image size))
-
-    (cloud/copy-image key (new-name image-id))
-    (update-image conn image-id)
-    (cloud/delete-image key)
-    (println (str "Imported " key " to " image-id))))
+      (cloud/copy-image key (new-name image-id))
+      (update-image conn image-id)
+      (cloud/delete-image key)
+      (println (str "Imported " key " to " image-id)))
+    (println (str "Skipping " key " - unable to extract image ID"))))
 
