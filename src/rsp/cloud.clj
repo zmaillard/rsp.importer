@@ -7,7 +7,7 @@
    [rsp.config :as cfg]
    [rsp.image :as image])
   (:import
-   (java.io ByteArrayOutputStream File)
+   (java.io FileOutputStream ByteArrayOutputStream File)
    (javax.imageio IIOImage)
    (javax.imageio.stream MemoryCacheImageOutputStream)
    (org.imgscalr Scalr Scalr$Method Scalr$Mode)))
@@ -45,7 +45,6 @@
     (-> (s3-client)
         (aws/invoke {:op :CopyObject :request {:Bucket "sign" :Key new-key :CopySource old-key-bucket-prefix}}))))
 
-
 (defn download-image
   [key image-id]
   (let [image-name (str "/tmp/" image-id ".jpg")
@@ -53,7 +52,7 @@
     (-> (s3-client)
         (aws/invoke {:op :GetObject :request {:Bucket "sign" :Key key}})
         (:Body)
-        (io/copy (io/output-stream file)))
+        (io/copy (FileOutputStream. file)))
 
     image-name))
 
