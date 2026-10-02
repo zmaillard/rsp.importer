@@ -1,0 +1,10 @@
+{:paths ["script"]
+ :pods {org.babashka/postgresql {:version "0.1.6"}
+        pod.zmaillard/snowflakeid {:path "./pod/snowflakeid/snowflakepod"}}
+ :tasks  {:requires ([babashka.fs :as fs]) 
+          download-ai (shell "rclone sync" "r2:sign/ai/" "working/ai" "-n") 
+          download-staging (shell "rclone sync" "r2:sign/staging/" "working/staging" "-n") 
+          save (exec 'image/import-new {:exec-args {:path "./working/staging"}})
+          exif (exec 'image/exif {:exec-args {:path "./working/staging"}})
+          resize (do (exec 'image/resize-images {:exec-args {:path "./working/ai"}})
+                     (exec 'image/resize-images {:exec-args {:path "./working/staging"}}))}}
