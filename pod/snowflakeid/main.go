@@ -1,47 +1,49 @@
 package main
 
 import (
-	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 
 	"github.com/bwmarrin/snowflake"
-	"github.com/russolsen/transit"
 )
 
-func respond(message *Message, value string) {
-	buf := bytes.NewBufferString("")
-	encoder := transit.NewEncoder(buf, false)
+func respond(message *Message, value []string) {
+	resp, err := json.Marshal(value)
 
-	if err := encoder.Encode(value); err != nil {
+	if  err != nil {
 		WriteErrorResponse(message, err)
 	} else {
-		WriteInvokeResponse(message, buf.String())
+		WriteInvokeResponse(message, string(resp))
 	}
 }
 
 
-func generateId() (string, error) {
+func generateId(count int) ([]string, error) {
 
 	// Create a new Node with a Node number of 1
 	node, err := snowflake.NewNode(1)
 	if err != nil {
-		return "", err
+		return []string{}, err
 	}
 
-	// Generate a snowflake ID.
-	id := node.Generate()
+	ids := make([]string, count)
+	for i := 0; i < count; i++ {
+		// Generate a snowflake ID.
+		id := node.Generate()
+		ids[i] = id.String()
+	}
 
-	return id.String(), nil
+	return ids, nil
 }
 
 func processMessage(message *Message) {
 	switch message.Op {
 	case "describe":
 		describeResponse := &DescribeResponse{
-			Format: "transit+json",
+			Format: "json",
 			Namespaces: []Namespace{
 				{
 					Name: "pod.zmaillard.snowflakeid",
@@ -57,7 +59,14 @@ func processMessage(message *Message) {
 	case "invoke":
 		switch message.Var {
 		case "pod.zmaillard.snowflakeid/new-id":
-			newId, err := generateId()
+			reqCount := []int{}
+			err := json.Unmarshal([]byte(message.Args), &reqCount)
+			if err != nil {
+				WriteErrorResponse(message, err)
+				return
+			}
+			newId, err := generateId(reqCount[0])
+			debug(newId)
 			if err != nil {
 				WriteErrorResponse(message, err)
 				return
@@ -70,6 +79,8 @@ func processMessage(message *Message) {
 		WriteErrorResponse(message, fmt.Errorf("unknown var: %s", message.Var))
 	}
 }
+
+
 
 func debug(v any) {
 	fmt.Fprintf(os.Stderr, "debug: %+q\n", v)
