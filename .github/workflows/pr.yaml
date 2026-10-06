@@ -10,8 +10,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
       - name: Setup Babashka
         uses: turtlequeue/setup-babashka@v1.7.0
         with:
           babashka-version: 1.13.225
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: '^1.26.2'
+      
+      - run: go mod tidy -C ./pod/snowflakeid
+
+      - run: go build -C ./pod/snowflakeid
+
       - run: bb test
