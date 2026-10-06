@@ -3,9 +3,8 @@
             [babashka.tasks :as tasks]
             [clojure.data.json :as json]  
             [pod.babashka.postgresql :as pg]
-            [pod.zmaillard.snowflakeid :as snowflake])
-  (:import  (java.time LocalDateTime)
-            (java.time.format DateTimeFormatter)))
+            [pod.zmaillard.snowflakeid :as snowflake]
+            [image.core :as core]))
 
 (def conn {:dbtype "postgres"
            :jdbcUrl (System/getenv "JDBC_URL")
@@ -13,51 +12,28 @@
            :password (System/getenv "DB_PASSWORD")})
 
 (defn -update-image
+  "Update the has_processed flag for an imageid corresponding to `key` in the
+  sign.highwaysign table."
   [key]
   (let
-    [imageid (bigint key)]
+    [imageid (core/coerce-imageid key)]
     (pg/execute-one! conn ["UPDATE sign.highwaysign SET has_processed = true WHERE imageid = ?" imageid])))
 
 (defn -save-image
-  [{date :date lat :lat lng :lng imageWidth :imageWidth imageHeight :imageHeight} conn key]
-  (pg/execute-one! conn "INSERT INTO sign.highwaysign_staging (image_width, image_height, imageid, date_taken, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?)" imageWidth imageHeight key date lat lng))
-
-(defn -get-images
- [path]
- (concat (fs/glob path "*.jpg") (fs/glob path "*.JPG")))
-
-(defn -build-decimal-degrees
-  [deg]
-  (if (nil? deg)
-    nil
-   (let [[_ d m s dir](re-find #"(\d+) deg (\d+)' (\d+.\d+)\" ([N|S|E|W])" deg)
-         neg (if (or(= dir "S")(= dir "W")) -1 1)]
-     (* neg(+ (abs (Double/parseDouble d)) (/ (Double/parseDouble m) 60) (/ (Double/parseDouble s) 3600))))))
-
-(defn -parse-date
-  [date]
-  (LocalDateTime/parse date (DateTimeFormatter/ofPattern "u:M:d k:m:s")))
-
-(defn -read-metadata
-  [metadata]
-  (let [date (-parse-date (get-in metadata [0 "DateTimeOriginal"]))
-        imageWidth (get-in metadata [0 "ImageWidth"])
-        imageHeight (get-in metadata [0 "ImageHeight"])
-        lat (-build-decimal-degrees (get-in metadata [0 "GPSLatitude"]))
-        lng (-build-decimal-degrees (get-in metadata [0 "GPSLongitude"]))]
-    {:date date :lat lat :lng lng :imageWidth imageWidth :imageHeight imageHeight}))
+  [metadata key]
+  (apply pg/execute-one! conn "INSERT INTO sign.highwaysign_staging (image_width, image_height, imageid, date_taken, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?)" (core/save-image-parms metadata key)))
 
 
 (defn exif
   [{base-dir :path}]
-  (doseq [ f (-get-images base-dir)]
+  (doseq [ f (core/get-images base-dir)]
     (let [base (fs/file-name f)
           [image-id _] (fs/split-ext base)]
-      (tasks/shell {:out (str (fs/path base-dir image-id) "-exif.json")} "exiftool" "-json" f))))
+      (tasks/shell {:out (core/exif-output-path base-dir image-id)} "exiftool" "-json" f))))
 
 (defn generate-ids
   [{base-dir :path}]
-  (let [images (-get-images base-dir)
+  (let [images (core/get-images base-dir)
         snowflakeIds (snowflake/new-id (count images))
         combined (map vector snowflakeIds images)]
       (doseq [[id f] combined]
@@ -71,21 +47,21 @@
 
 (defn import-new
   [{base-dir :path}]
- (doseq [f (-get-images base-dir)]
+ (doseq [f (core/get-images base-dir)]
    (let [base (fs/file-name f)
          [image-id _] (fs/split-ext base)
-         exif-path (str (fs/path base-dir image-id) "-exif.json")
-         orig-path (str (fs/path base-dir image-id) ".json")
-         metadata (-read-metadata(json/read-str (slurp exif-path))) 
+         exif-path (core/exif-output-path base-dir image-id)
+         orig-path (core/orig-metadata-path base-dir image-id)
+         metadata (core/read-metadata(json/read-str (slurp exif-path))) 
          orig-file (get (json/read-str (slurp orig-path)) "original")] 
     (prn "Importing image" image-id "with metadata" metadata)
     (tasks/shell "rclone copy" "--dry-run" "-vv" (fs/absolutize(fs/path base-dir image-id)) (str "r2:/sign/" image-id)) 
-    ;(save-image metadata conn image-id)
+    (-save-image metadata image-id)
     (tasks/shell "rclone deletefile" "--dry-run" (str "r2:sign/staging/" orig-file)))))
 
 (defn import-edited
   [{base-dir :path}]
- (doseq [f (-get-images base-dir)]
+ (doseq [f (core/get-images base-dir)]
    (let [base (fs/file-name f)
          [image-id _] (fs/split-ext base)]
     (prn "Updated image" image-id "with edited")
@@ -99,31 +75,18 @@
 
   (prn "Resizing images in" base-dir)
 
-  (doseq [ f (-get-images base-dir)]
+  (doseq [ f (core/get-images base-dir)]
     (let [base (fs/file-name f)
-          [image-id _] (fs/split-ext base)]
+          [image-id _] (fs/split-ext base)
+          target-dir (fs/path base-dir image-id)]
 
-      (if (not (fs/exists? (fs/path base-dir image-id)))
-        (fs/create-dir (fs/path base-dir  image-id))
+      (if (not (fs/exists? target-dir))
+        (fs/create-dir target-dir)
         (prn "Directory already exists for" image-id))
 
      ; TODO:: fs/copy fails if file already exists at that path
      (fs/copy f (fs/path base-dir image-id (str image-id ".jpg")))
-     (tasks/shell "magick" (str f) (fs/path base-dir image-id (str image-id ".avif")))
-     (tasks/shell "magick" (str f) (fs/path base-dir image-id (str image-id ".webp")))
-     (tasks/shell "magick" (str f) "-resize" "1024x" (fs/path base-dir image-id (str image-id "_l.jpg")))
-     (tasks/shell "magick" (str f) "-resize" "1024x" (fs/path base-dir image-id (str image-id "_l.avif")))
-     (tasks/shell "magick" (str f) "-resize" "1024x" (fs/path base-dir image-id (str image-id "_l.webp")))
-     (tasks/shell "magick" (str f) "-resize" "500x" (fs/path base-dir image-id (str image-id "_m.jpg")))
-     (tasks/shell "magick" (str f) "-resize" "500x" (fs/path base-dir image-id (str image-id "_m.avif")))
-     (tasks/shell "magick" (str f) "-resize" "500x" (fs/path base-dir image-id (str image-id "_m.webp")))
-     (tasks/shell "magick" (str f) "-resize" "240x" (fs/path base-dir image-id (str image-id "_s.jpg")))
-     (tasks/shell "magick" (str f) "-resize" "240x" (fs/path base-dir image-id (str image-id "_s.avif")))
-     (tasks/shell "magick" (str f) "-resize" "240x" (fs/path base-dir image-id (str image-id "_s.webp")))
-     (tasks/shell "magick" (str f) "-resize" "150x" (fs/path base-dir image-id (str image-id "_t.jpg")))
-     (tasks/shell "magick" (str f) "-resize" "150x" (fs/path base-dir image-id (str image-id "_t.avif")))
-     (tasks/shell "magick" (str f) "-resize" "150x" (fs/path base-dir image-id (str image-id "_t.webp")))
-     (tasks/shell "magick" (str f) "-resize" "10x" (fs/path base-dir image-id (str image-id "_p.jpg")))
-     (tasks/shell "magick" (str f) "-resize" "10x" (fs/path base-dir image-id (str image-id "_p.avif")))
-     (tasks/shell "magick" (str f) "-resize" "10x" (fs/path base-dir image-id (str image-id "_p.webp"))))))
+
+     (doseq [cmd (core/image-resize-commands base-dir image-id f)]
+       (apply tasks/shell cmd)))))
 

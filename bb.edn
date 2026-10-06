@@ -1,4 +1,4 @@
-{:paths ["script"]
+{:paths ["script" "test"]
  :pods {org.babashka/postgresql {:version "0.1.6"}
         pod.zmaillard/snowflakeid {:path "./pod/snowflakeid/snowflakepod" :cache false}}
  :tasks  {:requires ([babashka.fs :as fs]) 
@@ -10,4 +10,9 @@
                      (exec 'image/resize-images {:exec-args {:path "./working/staging"}}))
           import-signs {:depends [download identifier exif resize]
                         :task (do ;(exec 'image/import-new {:exec-args {:path "./working/staging"}})
-                                  (exec 'image/import-edited {:exec-args {:path "./working/ai"}}))}}}
+                                  (exec 'image/import-edited {:exec-args {:path "./working/ai"}}))}
+          test (do (require 'image.core-test)
+                    (require 'image-test)
+                    (let [run-tests (requiring-resolve 'clojure.test/run-tests)
+                          {:keys [fail error]} (run-tests 'image.core-test 'image-test)]
+                      (System/exit (if (zero? (+ fail error)) 0 1))))}}
