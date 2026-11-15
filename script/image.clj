@@ -21,7 +21,7 @@
 
 (defn -save-image
   [metadata key]
-  (apply pg/execute-one! conn "INSERT INTO sign.highwaysign_staging (image_width, image_height, imageid, date_taken, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?)" (core/save-image-parms metadata key)))
+  (pg/execute-one! conn (into ["INSERT INTO sign.highwaysign_staging (image_width, image_height, imageid, date_taken, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?)"] (core/save-image-parms metadata key))))
 
 
 (defn exif

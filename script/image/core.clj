@@ -10,7 +10,7 @@
 
 (defn save-image-parms
  [{:keys [date lat lng imageWidth imageHeight]} key]
- [imageWidth imageHeight key date lat lng])
+ [imageWidth imageHeight (coerce-imageid key) date lat lng])
 
 (defn exif-output-path
  [base-dir image-id]
