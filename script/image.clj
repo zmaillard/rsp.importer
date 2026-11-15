@@ -55,9 +55,9 @@
          metadata (core/read-metadata(json/read-str (slurp exif-path))) 
          orig-file (get (json/read-str (slurp orig-path)) "original")] 
     (prn "Importing image" image-id "with metadata" metadata)
-    (tasks/shell "rclone copy" "--dry-run" "-vv" (fs/absolutize(fs/path base-dir image-id)) (str "r2:/sign/" image-id)) 
+    (tasks/shell "rclone copy" (fs/absolutize(fs/path base-dir image-id)) (str "r2:/sign/" image-id)) 
     (-save-image metadata image-id)
-    (tasks/shell "rclone deletefile" "--dry-run" (str "r2:sign/staging/" orig-file)))))
+    (tasks/shell "rclone deletefile" (str "r2:sign/staging/" orig-file)))))
 
 (defn import-edited
   [{base-dir :path}]
