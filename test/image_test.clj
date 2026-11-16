@@ -70,11 +70,11 @@
 
           (testing "shells out to rclone copy then rclone deletefile, in order"
             (is (= 2 (count @shell-calls)))
-            (is (= ["rclone copy" "--dry-run" "-vv"
+            (is (= ["rclone copy"
                     (str (fs/absolutize (fs/path dir "123")))
                     "r2:/sign/123"]
                    (mapv str (first @shell-calls))))
-            (is (= ["rclone deletefile" "--dry-run" "r2:sign/staging/original-photo.jpg"]
+            (is (= ["rclone deletefile" "r2:sign/staging/original-photo.jpg"]
                    (mapv str (second @shell-calls)))))
 
           (testing "saves the parsed metadata to the DB with the correct positional params"

@@ -141,13 +141,13 @@
   (testing "maps metadata into the exact positional order expected by the INSERT statement"
     (let [date (LocalDateTime/of 2023 10 5 14 30 15)
           metadata {:date date :lat 40.4 :lng -79.9 :imageWidth 1920 :imageHeight 1080}]
-      (is (= [1920 1080 "123" date 40.4 -79.9]
+      (is (= [1920 1080 123N date 40.4 -79.9]
              (core/save-image-parms metadata "123")))))
 
   (testing "nil lat/lng pass through in their correct positions"
     (let [date (LocalDateTime/of 2023 10 5 14 30 15)
           metadata {:date date :lat nil :lng nil :imageWidth 640 :imageHeight 480}]
-      (is (= [640 480 "123" date nil nil]
+      (is (= [640 480 123N date nil nil]
              (core/save-image-parms metadata "123"))))))
 
 (deftest exif-output-path-test
