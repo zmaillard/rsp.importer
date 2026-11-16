@@ -16,3 +16,6 @@ pom.xml.asc
 .env
 .envrc
 .lsp/
+working/
+.babashka/
+pod/snowflakeid/snowflakepod
