@@ -79,7 +79,7 @@
 
           (testing "saves the parsed metadata to the DB with the correct positional params"
             (is (= 1 (count @pg-calls)))
-            (let [[conn sql & params] (first @pg-calls)
+            (let [[conn [sql & params]] (first @pg-calls)
                   expected-metadata (core/read-metadata exif-json)]
               (is (= sut/conn conn))
               (is (re-find #"INSERT INTO sign\.highwaysign_staging" sql))
