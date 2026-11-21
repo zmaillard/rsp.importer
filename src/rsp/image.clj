@@ -52,9 +52,9 @@
                  webp-params (.getDefaultWriteParam writer)]
              (.setCompressionQuality webp-params 1.0)
              webp-params)
-    "avif" (let [writer (ImageIO/getImageWriteParam (get-image-writer-by-type "heif"))
-                 heif-params (HeifWriteParam writer)] 
-             (.setCompressionMode avif-params ImageWriteParam/MODE_EXPLICIT)
+    "avif" (let [writer (get-image-writer-by-type "heif")
+                 ^HeifWriteParam avif-params (.getDefaultWriteParam writer)] 
+             (.setCompressionMode avif-params "HEIF_COMPRESSION_AV1")
              (.setCompressionQuality avif-params 1.0)
              avif-params)
     (throw (ex-info (str "Unsupported image type: " type) {:type type}))))
