@@ -33,7 +33,7 @@
   [title image size type]
   (let [new-width (image/get-image-width size)
         new-image (Scalr/resize image Scalr$Method/ULTRA_QUALITY Scalr$Mode/FIT_TO_WIDTH new-width 0 image/antialias-op)
-        writer (image/get-image-writer-by-type type)
+        writer (image/get-image-writer-by-type (if (= type "avif") "heif" type))
         image-output-stream (ByteArrayOutputStream.)
         memory-output-stream (MemoryCacheImageOutputStream. image-output-stream)]
     (.setOutput writer memory-output-stream)
@@ -44,7 +44,7 @@
 
 (defn convert-image
   [title image type]
-  (let [writer (image/get-image-writer-by-type type)
+  (let [writer (image/get-image-writer-by-type (if (= type "avif") "heif" type))
         image-output-stream (ByteArrayOutputStream.)
         memory-output-stream (MemoryCacheImageOutputStream. image-output-stream)]
     (.setOutput writer memory-output-stream)
