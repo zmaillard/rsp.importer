@@ -7,9 +7,7 @@
    [rsp.config :as cfg]
    [rsp.image :as image])
   (:import
-   (java.io FileOutputStream ByteArrayOutputStream File)
-   (javax.imageio IIOImage)
-   (javax.imageio.stream MemoryCacheImageOutputStream)
+   (java.io FileOutputStream File)
    (org.imgscalr Scalr Scalr$Method Scalr$Mode)))
 
 (defn s3-client
@@ -33,25 +31,15 @@
   [title image size type]
   (let [new-width (image/get-image-width size)
         new-image (Scalr/resize image Scalr$Method/ULTRA_QUALITY Scalr$Mode/FIT_TO_WIDTH new-width 0 image/antialias-op)
-        writer (image/get-image-writer-by-type (if (= type "avif") "heif" type))
-        image-output-stream (ByteArrayOutputStream.)
-        memory-output-stream (MemoryCacheImageOutputStream. image-output-stream)]
-    (.setOutput writer memory-output-stream)
-    (.write writer nil (IIOImage. new-image nil nil) (image/get-quality type))
+        bytes (image/encode-image new-image type)]
     (-> (s3-client)
-        (aws/invoke {:op :PutObject :request {:Bucket "sign" :ContentType (get-mime type) :Key title :Body (.toByteArray image-output-stream)}}))
-    (.dispose writer)))
+        (aws/invoke {:op :PutObject :request {:Bucket "sign" :ContentType (get-mime type) :Key title :Body bytes}}))))
 
 (defn convert-image
   [title image type]
-  (let [writer (image/get-image-writer-by-type (if (= type "avif") "heif" type))
-        image-output-stream (ByteArrayOutputStream.)
-        memory-output-stream (MemoryCacheImageOutputStream. image-output-stream)]
-    (.setOutput writer memory-output-stream)
-    (.write writer nil (IIOImage. image nil nil) (image/get-quality type))
+  (let [bytes (image/encode-image image type)]
     (-> (s3-client)
-        (aws/invoke {:op :PutObject :request {:Bucket "sign" :ContentType (get-mime type) :Key title :Body (.toByteArray image-output-stream)}}))
-    (.dispose writer)))
+        (aws/invoke {:op :PutObject :request {:Bucket "sign" :ContentType (get-mime type) :Key title :Body bytes}}))))
 
 (defn delete-image
   [key]
