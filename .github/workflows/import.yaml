@@ -24,7 +24,8 @@ jobs:
 
       - name: Debug HEIF compression types
         run: clojure -J--enable-native-access=ALL-UNNAMED -M -e "(require 'dev) (dev/print-heif-compression-types)" 
-
+        env:
+          LD_LIBRARY_PATH: /usr/lib/x86_64-linux-gnu 
       # - name: Import New Images
       #   run: clojure -J--enable-native-access=ALL-UNNAMED -M -m rsp.importer 
       #   env:
