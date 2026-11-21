@@ -4,7 +4,7 @@
    [java.io File]
    (javax.imageio ImageIO ImageWriteParam)
    (javax.imageio.plugins.jpeg JPEGImageWriteParam)
-   (com.github.gotson.nightmonkeys.heif.imageio.plugins.HeifWriteParam)
+   (com.github.gotson.nightmonkeys.heif.imageio.plugins HeifWriteParam)
    (org.imgscalr Scalr)))
 
 
