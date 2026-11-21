@@ -9,7 +9,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Install image processing dependencies
-        run: sudo apt install -y libheif-dev libwebp-dev
+        run: sudo apt install -y libheif-dev libheif-plugin-aomenc libwebp-dev
 
       - name: Install Java
         uses: actions/setup-java@v4
