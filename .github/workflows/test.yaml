@@ -1,0 +1,32 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install image processing dependencies
+        run: sudo apt install -y libheif-dev libheif-plugin-aomenc libwebp-dev
+
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '23'
+
+      - name: Install Clojure
+        uses: DeLaGuardo/setup-clojure@12.5
+        with:
+          cli: 1.11.3.1463
+
+      - name: Run tests
+        run: clojure -J--enable-native-access=ALL-UNNAMED -M:test
+        env:
+          LD_LIBRARY_PATH: /usr/lib/x86_64-linux-gnu

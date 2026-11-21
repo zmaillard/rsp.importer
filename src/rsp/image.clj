@@ -1,9 +1,12 @@
 (ns rsp.image
   (:import
-   (java.awt.image BufferedImageOp)
+   (java.awt.image BufferedImage BufferedImageOp)
    [java.io File]
-   (javax.imageio ImageIO ImageWriteParam)
+   (javax.imageio IIOImage ImageIO ImageWriteParam)
    (javax.imageio.plugins.jpeg JPEGImageWriteParam)
+   (javax.imageio.stream MemoryCacheImageOutputStream)
+   (java.io ByteArrayOutputStream)
+   (com.github.gotson.nightmonkeys.heif.imageio.plugins HeifWriteParam)
    (org.imgscalr Scalr)))
 
 
@@ -32,15 +35,82 @@
 
 (def antialias-op (into-array BufferedImageOp [Scalr/OP_ANTIALIAS]))
 
-(defn get-image-writers
-  []
-  (.next (ImageIO/getImageWritersByFormatName "jpg")))
+(defn get-writer-format
+  "Maps a logical image type to the ImageIO format name used to look up a
+  writer. Most types match 1:1, but \"avif\" is written via the \"heif\"
+  ImageIO format (forced to AV1 compression in get-quality) since
+  NightMonkeys only registers a single \"heif\" writer."
+  [type]
+  (case type
+    "avif" "heif"
+    type))
 
-(defn get-jpeg-quality
-  []
-  (let [jpeg-params (JPEGImageWriteParam. nil)]
-    (.setCompressionMode jpeg-params ImageWriteParam/MODE_EXPLICIT)
-    (.setCompressionQuality jpeg-params 1.0)
-    jpeg-params))
+(defn get-image-writer-by-type
+  [type]
+  (.next (ImageIO/getImageWritersByFormatName type)))
+
+(def ^:private int-based-buffered-image-types
+  #{BufferedImage/TYPE_INT_RGB
+    BufferedImage/TYPE_INT_ARGB
+    BufferedImage/TYPE_INT_ARGB_PRE
+    BufferedImage/TYPE_INT_BGR})
+
+(defn ensure-int-based
+  "The NightMonkeys HEIF/AVIF writer only accepts BufferedImages backed by
+  an int-packed raster (TYPE_INT_*). Images loaded via ImageIO/read (and
+  anything imgscalr resizes from them) are typically TYPE_3BYTE_BGR
+  (a byte-packed raster), which the writer rejects with
+  'TransferType is not INT'. Convert to TYPE_INT_ARGB when needed."
+  [^BufferedImage image]
+  (if (contains? int-based-buffered-image-types (.getType image))
+    image
+    (let [converted (BufferedImage. (.getWidth image) (.getHeight image) BufferedImage/TYPE_INT_ARGB)
+          g (.createGraphics converted)]
+      (try
+        (.drawImage g image 0 0 nil)
+        (finally
+          (.dispose g)))
+      converted)))
+
+
+(defn get-quality 
+  [type]
+  (case type
+    "jpg"  (let [jpeg-params (JPEGImageWriteParam. nil)]
+             (.setCompressionMode jpeg-params ImageWriteParam/MODE_EXPLICIT)
+             (.setCompressionQuality jpeg-params 1.0)
+             jpeg-params)
+    "webp" (let [writer (get-image-writer-by-type (get-writer-format "webp"))
+                 webp-params (.getDefaultWriteParam writer)]
+             (.setCompressionQuality webp-params 1.0)
+             webp-params)
+    "avif" (let [writer (get-image-writer-by-type (get-writer-format "avif"))
+                 ^HeifWriteParam avif-params (.getDefaultWriteParam writer)] 
+             (.setCompressionMode avif-params ImageWriteParam/MODE_EXPLICIT)
+             (.setCompressionType avif-params "HEIF_COMPRESSION_AV1")
+             (.setCompressionQuality avif-params 1.0)
+             avif-params)
+    (throw (ex-info (str "Unsupported image type: " type) {:type type}))))
+
+(defn encode-image
+  "Encodes a BufferedImage to a byte array for the given logical image
+  type (\"jpg\", \"webp\", or \"avif\"), using the writer and quality
+  settings appropriate for that type."
+  [image type]
+  (let [writer (get-image-writer-by-type (get-writer-format type))
+        image-to-write (if (= type "avif") (ensure-int-based image) image)
+        image-output-stream (ByteArrayOutputStream.)
+        memory-output-stream (MemoryCacheImageOutputStream. image-output-stream)]
+    (try
+      (.setOutput writer memory-output-stream)
+      (.write writer nil (IIOImage. image-to-write nil nil) (get-quality type))
+      ;; Not every ImageWriter flushes the output stream itself (e.g. the
+      ;; HEIF writer doesn't), and MemoryCacheImageOutputStream buffers
+      ;; internally until flushed, so without this the underlying
+      ;; ByteArrayOutputStream can come back empty.
+      (.flush memory-output-stream)
+      (.toByteArray image-output-stream)
+      (finally
+        (.dispose writer)))))
 
 
