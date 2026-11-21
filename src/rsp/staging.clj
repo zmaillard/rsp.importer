@@ -14,8 +14,16 @@
 (defonce snowflake-generator (SnowflakeIdGenerator/createDefault 0))
 
 (defn new-name
+  ([key size type]
+   (str key "/" key "_" (image/get-image-name size) "." type))
   ([key size]
    (str key "/" key "_" (image/get-image-name size) ".jpg"))
+  ([key]
+   (str key "/" key ".jpg")))
+
+(defn new-name-no-scale
+  ([key type]
+   (str key "/" key "." type))
   ([key]
    (str key "/" key ".jpg")))
 
@@ -61,9 +69,13 @@
         raw-image (image/load-image image-name)]
 
     (doseq [size (keys image/image-size)]
-      (cloud/scale-image (new-name image-id size) raw-image size))
+      (cloud/scale-image (new-name image-id size "jpg") raw-image size "jpg")
+      (cloud/scale-image (new-name image-id size "avif") raw-image size "avif")
+      (cloud/scale-image (new-name image-id size "webp") raw-image size "webp"))
 
-    (cloud/copy-image key (new-name image-id))
+    (cloud/convert-image (new-name-no-scale image-id "avif") raw-image "avif")
+    (cloud/convert-image (new-name-no-scale image-id "webp") raw-image "webp")
+    (cloud/copy-image key (new-name-no-scale image-id))
     (save-image metadata (get-dimensions raw-image) conn image-id)
     (cloud/delete-image key)
     (println (str "Imported " key " to " image-id))))

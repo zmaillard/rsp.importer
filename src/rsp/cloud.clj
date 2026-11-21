@@ -21,17 +21,36 @@
                  :endpoint-override    {
                                         :hostname (cfg/get-aws-endpoint-url config)
                                         :region   "auto"}})))
+(defn get-mime
+ [type]
+ (case type
+    "jpg"  "image/jpeg"
+    "webp" "image/webp"
+    "avif" "image/avif"
+    (throw (ex-info (str "Unsupported image type: " type) {:type type}))))
+
 (defn scale-image
-  [title image size]
+  [title image size type]
   (let [new-width (image/get-image-width size)
         new-image (Scalr/resize image Scalr$Method/ULTRA_QUALITY Scalr$Mode/FIT_TO_WIDTH new-width 0 image/antialias-op)
-        writer (image/get-image-writers)
+        writer (image/get-image-writer-by-type type)
         image-output-stream (ByteArrayOutputStream.)
         memory-output-stream (MemoryCacheImageOutputStream. image-output-stream)]
     (.setOutput writer memory-output-stream)
-    (.write writer nil (IIOImage. new-image nil nil) (image/get-jpeg-quality))
+    (.write writer nil (IIOImage. new-image nil nil) (image/get-quality type))
     (-> (s3-client)
-        (aws/invoke {:op :PutObject :request {:Bucket "sign" :ContentType "image/jpeg" :Key title :Body (.toByteArray image-output-stream)}}))
+        (aws/invoke {:op :PutObject :request {:Bucket "sign" :ContentType (get-mime type) :Key title :Body (.toByteArray image-output-stream)}}))
+    (.dispose writer)))
+
+(defn convert-image
+  [title image type]
+  (let [writer (image/get-image-writer-by-type type)
+        image-output-stream (ByteArrayOutputStream.)
+        memory-output-stream (MemoryCacheImageOutputStream. image-output-stream)]
+    (.setOutput writer memory-output-stream)
+    (.write writer nil (IIOImage. image nil nil) (image/get-quality type))
+    (-> (s3-client)
+        (aws/invoke {:op :PutObject :request {:Bucket "sign" :ContentType (get-mime type) :Key title :Body (.toByteArray image-output-stream)}}))
     (.dispose writer)))
 
 (defn delete-image

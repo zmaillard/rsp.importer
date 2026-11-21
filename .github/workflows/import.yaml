@@ -8,6 +8,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Install image processing dependencies
+        run: sudo apt install -y libheif-dev libwebp-dev
+
       - name: Install Java
         uses: actions/setup-java@v4
         with:
@@ -19,22 +22,25 @@ jobs:
         with:
           cli: 1.11.3.1463
 
-      - name: Import New Images
-        run: clojure -M -m rsp.importer
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
-          AWS_ENDPOINT_URL: ${{ vars.AWS_ENDPOINT_URL }}
-          JDBC_URL: ${{ secrets.JDBC_URL }}
-          DB_USERNAME: ${{ secrets.DB_USERNAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      - name: Debug HEIF compression types
+        run: clojure -M -e "(require 'dev) (dev/print-heif-compression-types)" -J--enable-native-access=ALL-UNNAMED
 
-      - name: Import Edited Images
-        run: clojure -M -m rsp.importer --ai
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
-          AWS_ENDPOINT_URL: ${{ vars.AWS_ENDPOINT_URL }}
-          JDBC_URL: ${{ secrets.JDBC_URL }}
-          DB_USERNAME: ${{ secrets.DB_USERNAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      # - name: Import New Images
+      #   run: clojure -M -m rsp.importer -J--enable-native-access=ALL-UNNAMED
+      #   env:
+      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #     AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+      #     AWS_ENDPOINT_URL: ${{ vars.AWS_ENDPOINT_URL }}
+      #     JDBC_URL: ${{ secrets.JDBC_URL }}
+      #     DB_USERNAME: ${{ secrets.DB_USERNAME }}
+      #     DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      #
+      # - name: Import Edited Images
+      #   run: clojure -M -m rsp.importer --ai -J--enable-native-access=ALL-UNNAMED
+      #   env:
+      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #     AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
+      #     AWS_ENDPOINT_URL: ${{ vars.AWS_ENDPOINT_URL }}
+      #     JDBC_URL: ${{ secrets.JDBC_URL }}
+      #     DB_USERNAME: ${{ secrets.DB_USERNAME }}
+      #     DB_PASSWORD: ${{ secrets.DB_PASSWORD }}

@@ -4,6 +4,7 @@
    [java.io File]
    (javax.imageio ImageIO ImageWriteParam)
    (javax.imageio.plugins.jpeg JPEGImageWriteParam)
+   (com.github.gotson.nightmonkeys.heif.imageio.plugins.HeifWriteParam)
    (org.imgscalr Scalr)))
 
 
@@ -32,15 +33,30 @@
 
 (def antialias-op (into-array BufferedImageOp [Scalr/OP_ANTIALIAS]))
 
+(defn get-image-writer-by-type
+  [type]
+  (.next (ImageIO/getImageWritersByFormatName type)))
+
 (defn get-image-writers
   []
   (.next (ImageIO/getImageWritersByFormatName "jpg")))
 
-(defn get-jpeg-quality
-  []
-  (let [jpeg-params (JPEGImageWriteParam. nil)]
-    (.setCompressionMode jpeg-params ImageWriteParam/MODE_EXPLICIT)
-    (.setCompressionQuality jpeg-params 1.0)
-    jpeg-params))
+(defn get-quality 
+  [type]
+  (case type
+    "jpg"  (let [jpeg-params (JPEGImageWriteParam. nil)]
+             (.setCompressionMode jpeg-params ImageWriteParam/MODE_EXPLICIT)
+             (.setCompressionQuality jpeg-params 1.0)
+             jpeg-params)
+    "webp" (let [writer (get-image-writer-by-type "webp")
+                 webp-params (.getDefaultWriteParam writer)]
+             (.setCompressionQuality webp-params 1.0)
+             webp-params)
+    "avif" (let [writer (ImageIO/getImageWriteParam (get-image-writer-by-type "heif"))
+                 heif-params (HeifWriteParam writer)] 
+             (.setCompressionMode avif-params ImageWriteParam/MODE_EXPLICIT)
+             (.setCompressionQuality avif-params 1.0)
+             avif-params)
+    (throw (ex-info (str "Unsupported image type: " type) {:type type}))))
 
 
