@@ -69,10 +69,46 @@
   [w h]
   (BufferedImage. w h BufferedImage/TYPE_INT_RGB))
 
+(defn- make-byte-based-test-image
+  "TYPE_3BYTE_BGR, i.e. a byte-packed raster rather than an int-packed one.
+  This is what ImageIO/read typically returns for real JPEG files (and
+  what imgscalr preserves when resizing them) - the exact shape that
+  triggered 'TransferType is not INT' from the HEIF/AVIF writer in
+  production, which encode-image's int-based BufferedImages didn't
+  exercise."
+  [w h]
+  (BufferedImage. w h BufferedImage/TYPE_3BYTE_BGR))
+
+(deftest ensure-int-based-test
+  (testing "passes through images already backed by an int-packed raster"
+    (let [image (make-test-image 8 8)]
+      (is (identical? image (image/ensure-int-based image)))))
+  (testing "converts byte-packed rasters to an int-packed raster"
+    (let [image (make-byte-based-test-image 8 8)
+          converted (image/ensure-int-based image)]
+      (is (not (identical? image converted)))
+      (is (= BufferedImage/TYPE_INT_ARGB (.getType converted)))
+      (is (= 8 (.getWidth converted)))
+      (is (= 8 (.getHeight converted))))))
+
 (deftest encode-image-round-trip-test
   (doseq [type ["jpg" "webp" "avif"]]
     (testing type
       (let [bytes (image/encode-image (make-test-image 16 16) type)]
+        (is (pos? (count bytes)) "produced non-empty output")
+        (let [decoded (ImageIO/read (ByteArrayInputStream. bytes))]
+          (is (some? decoded) "ImageIO could read back what was written")
+          (is (= 16 (.getWidth decoded)))
+          (is (= 16 (.getHeight decoded))))))))
+
+(deftest encode-image-round-trip-byte-based-image-test
+  ;; Regression test: real images loaded via ImageIO/read (and anything
+  ;; imgscalr resizes from them) are typically TYPE_3BYTE_BGR, not
+  ;; TYPE_INT_*. Without ensure-int-based, the "avif" branch throws
+  ;; UnsupportedOperationException: TransferType is not INT.
+  (doseq [type ["jpg" "webp" "avif"]]
+    (testing type
+      (let [bytes (image/encode-image (make-byte-based-test-image 16 16) type)]
         (is (pos? (count bytes)) "produced non-empty output")
         (let [decoded (ImageIO/read (ByteArrayInputStream. bytes))]
           (is (some? decoded) "ImageIO could read back what was written")

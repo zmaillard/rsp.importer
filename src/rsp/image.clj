@@ -1,6 +1,6 @@
 (ns rsp.image
   (:import
-   (java.awt.image BufferedImageOp)
+   (java.awt.image BufferedImage BufferedImageOp)
    [java.io File]
    (javax.imageio IIOImage ImageIO ImageWriteParam)
    (javax.imageio.plugins.jpeg JPEGImageWriteParam)
@@ -49,6 +49,29 @@
   [type]
   (.next (ImageIO/getImageWritersByFormatName type)))
 
+(def ^:private int-based-buffered-image-types
+  #{BufferedImage/TYPE_INT_RGB
+    BufferedImage/TYPE_INT_ARGB
+    BufferedImage/TYPE_INT_ARGB_PRE
+    BufferedImage/TYPE_INT_BGR})
+
+(defn ensure-int-based
+  "The NightMonkeys HEIF/AVIF writer only accepts BufferedImages backed by
+  an int-packed raster (TYPE_INT_*). Images loaded via ImageIO/read (and
+  anything imgscalr resizes from them) are typically TYPE_3BYTE_BGR
+  (a byte-packed raster), which the writer rejects with
+  'TransferType is not INT'. Convert to TYPE_INT_ARGB when needed."
+  [^BufferedImage image]
+  (if (contains? int-based-buffered-image-types (.getType image))
+    image
+    (let [converted (BufferedImage. (.getWidth image) (.getHeight image) BufferedImage/TYPE_INT_ARGB)
+          g (.createGraphics converted)]
+      (try
+        (.drawImage g image 0 0 nil)
+        (finally
+          (.dispose g)))
+      converted)))
+
 
 (defn get-quality 
   [type]
@@ -75,11 +98,12 @@
   settings appropriate for that type."
   [image type]
   (let [writer (get-image-writer-by-type (get-writer-format type))
+        image-to-write (if (= type "avif") (ensure-int-based image) image)
         image-output-stream (ByteArrayOutputStream.)
         memory-output-stream (MemoryCacheImageOutputStream. image-output-stream)]
     (try
       (.setOutput writer memory-output-stream)
-      (.write writer nil (IIOImage. image nil nil) (get-quality type))
+      (.write writer nil (IIOImage. image-to-write nil nil) (get-quality type))
       ;; Not every ImageWriter flushes the output stream itself (e.g. the
       ;; HEIF writer doesn't), and MemoryCacheImageOutputStream buffers
       ;; internally until flushed, so without this the underlying
